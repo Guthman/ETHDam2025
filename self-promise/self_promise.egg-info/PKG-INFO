@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: self-promise
+Version: 0.1.0
+Summary: Privacy-preserving self-promise platform using Oasis Network
+Author: EthDAM Hackathon Team
+Author-email: example@example.com
+Keywords: blockchain,privacy,TEE,self-promise
+Requires-Python: >=3.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: keywords
+Dynamic: requires-python
+Dynamic: summary

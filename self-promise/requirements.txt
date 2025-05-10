@@ -1,0 +1,18 @@
+# Core dependencies
+web3>=6.15.0
+eth-account>=0.11.0
+python-dotenv>=1.0.0
+
+# Oasis Sapphire integration
+oasis-sapphire-py>=0.1.0
+py-solc-x>=1.1.1
+
+# Development tools
+pytest>=8.3.0
+pytest-cov>=4.0.0
+black>=24.3.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Optional: LLM integrations
+openai>=1.0.0 
