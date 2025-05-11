@@ -6,6 +6,8 @@ A privacy-preserving platform for self-binding contracts with consequences, buil
 
 The Self-Promise Platform enables users to make promises to themselves with financial accountability. Users deposit ROSE tokens as collateral and define a verifiable condition (e.g., exercise frequency, screen time limits, study hours). The platform then evaluates the promise using data from integrated services (e.g., Fitbit) and either returns the tokens to the user if the promise is kept or handles them according to predefined rules if broken.
 
+![Self-Promise Application Screenshot](https://i.imgur.com/qaCTahu.png)
+
 ### Key Features
 
 - **Privacy-Preserving**: All evidence data is processed within a Trusted Execution Environment (TEE) using Oasis Sapphire, ensuring user data remains private.
@@ -105,26 +107,42 @@ python test_minimal_demo.py
 
 ```
 self-promise/
-├── contracts/                   # Solidity smart contracts
-│   ├── PromiseDeposit.sol       # Token deposit contract
-│   ├── PromiseKeeper.sol        # Promise management contract
-│   ├── MinimalPromiseDeposit.sol  # Minimal token deposit contract
-│   └── MinimalPromiseKeeper.sol   # Minimal promise management contract
-├── src/
-│   ├── evaluator/               # Promise evaluation modules
-│   │   ├── interface.py         # Evaluator interface
-│   │   ├── rule_based.py        # Rule-based evaluator
-│   │   └── llm_based.py         # LLM-based evaluator
-│   ├── terra_api/               # Fitness data integration
-│   │   └── client.py            # Terra API client
-│   ├── tee/                     # TEE integration
-│   │   └── sapphire.py          # Oasis Sapphire integration
-│   └── service.py               # Main service module
+├── contracts/                   # Solidity smart contracts (PromiseDeposit, PromiseKeeper, and minimal versions)
+├── src/                         # Core service logic
+│   ├── evaluator/               # Promise evaluation modules (rule-based, LLM-based)
+│   ├── tee/                     # TEE integration (Oasis Sapphire, ROFL client)
+│   ├── terra_api/               # Fitness data integration (Terra API client)
+│   └── service.py               # Main SelfPromiseService implementation
+├── web_app/                     # Flask web application (if applicable, adjust path if different)
+│   ├── static/                  # CSS, JS files
+│   └── templates/               # HTML templates
+├── scripts/                     # CLI scripts and utilities
+├── rofl_app/                    # ROFL application code
 ├── tests/                       # Test modules
-├── TODO_GAS_OPTIMIZATION.md     # Gas optimization tasks
+├── self_promise_cli.py          # Example CLI entry point (if applicable)
 ├── setup.py                     # Package setup
-└── pyproject.toml               # Project configuration
+├── pyproject.toml               # Project configuration
+└── TODO_GAS_OPTIMIZATION.md     # Gas optimization tasks
 ```
+
+## CLI and Web Application
+
+The Self-Promise platform includes a Command Line Interface (CLI) and a Web Application to interact with the core services.
+
+### Current Integration Model
+
+- Both the CLI and Web App currently utilize a `MockSelfPromiseService`. This mock service simulates interactions with the smart contracts, allowing for development and testing without direct blockchain engagement. (Note: The web app's import from `self_promise_cli.py` as mentioned in `cli_web_integration_analysis.md` suggests a close tie, which might need refactoring for clarity if `self_promise_cli.py` is primarily a CLI entry point).
+- The real `SelfPromiseService`, which interacts with the Oasis Sapphire network and TEE components, is available in `self-promise/src/service.py`.
+
+### Path to Full Smart Contract Integration
+
+Connecting the CLI and Web App to the live smart contracts involves:
+1.  **Service Replacement**: Modifying the service factory (e.g., `get_service()` potentially in `self_promise_cli.py` or a shared module) to provide the real `SelfPromiseService` instead of the mock one.
+2.  **Handling Asynchronicity**: Adapting the CLI and Web App to handle asynchronous operations, as the real service uses `async/await`. This may involve creating synchronous wrappers or refactoring the frontends.
+3.  **Configuration**: Ensuring robust configuration management for network details, private keys, contract addresses, and ABIs, likely extending existing environment variable handling.
+4.  **Error Handling**: Implementing comprehensive error handling for blockchain interactions, including retries and transaction monitoring.
+
+The modular design of the platform, with a separation between service interfaces and implementations, facilitates this transition. The `cli_web_integration_analysis.md` document contains further details on this topic.
 
 ## Gas Optimization
 
@@ -258,6 +276,7 @@ For more information, refer to the [Oasis Sapphire documentation](https://docs.o
 - Created `test_minimal_demo.py` for testing the minimal contracts
 - Added `TODO_GAS_OPTIMIZATION.md` with planned gas optimization tasks
 - Updated README with information about the minimal contracts and gas optimization plan
+- Documented CLI and Web Application integration status and path forward. (Self-correction: this changelog entry should be added by the user/developer after this change is applied and a new version is decided. I'm noting it here for completeness of the thought process).
 
 ### v0.1.2
 - Optimized gas limits for all contract operations to prevent out-of-gas errors
