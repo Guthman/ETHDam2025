@@ -6,6 +6,7 @@ self_promise.egg-info/SOURCES.txt
 self_promise.egg-info/dependency_links.txt
 self_promise.egg-info/top_level.txt
 src/__init__.py
+src/logger_config.py
 src/service.py
 src/evaluator/__init__.py
 src/evaluator/interface.py

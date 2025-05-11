@@ -7,212 +7,15 @@ import json
 import os
 import time
 import webbrowser
-import http.server
-import socketserver
-import threading
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import urllib.parse
-import socket
-from typing import Optional, Dict, Any, Tuple
 
 # --- Configuration and Service Initialization ---
 
 _CLI_TEST_CONFIG_DIR_OVERRIDE = None
 
 _service_instance = None
-
-# --- Mock Authorization Server ---
-class MockAuthHandler(http.server.SimpleHTTPRequestHandler):
-    """Handler for mock authorization page and callbacks."""
-    
-    # Class variable to store authorization result across instances
-    auth_result = {"status": "pending", "decision": None}
-    
-    # Simple template for the authorization page based on the Fitbit screenshot
-    AUTH_PAGE_TEMPLATE = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Mock Fitbit Authorization</title>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                max-width: 600px;
-                margin: 0 auto;
-                padding: 20px;
-                line-height: 1.6;
-            }}
-            .logo {{
-                color: #00B0B9;
-                font-size: 2.5em;
-                font-weight: bold;
-                margin-bottom: 20px;
-            }}
-            .logo span {{
-                color: #192743;
-            }}
-            h2 {{
-                color: #333;
-                margin-top: 30px;
-            }}
-            .permission-list {{
-                list-style-type: none;
-                padding-left: 0;
-            }}
-            .permission-list li {{
-                margin: 10px 0;
-                padding-left: 25px;
-                position: relative;
-            }}
-            .permission-list li:before {{
-                content: "☐";
-                position: absolute;
-                left: 0;
-            }}
-            .buttons {{
-                margin-top: 30px;
-                display: flex;
-                justify-content: space-between;
-            }}
-            .deny {{
-                background-color: #F06292;
-                color: white;
-                padding: 12px 30px;
-                border: none;
-                border-radius: 30px;
-                cursor: pointer;
-                font-size: 1em;
-            }}
-            .allow {{
-                background-color: #F8BBD0;
-                color: white;
-                padding: 12px 30px;
-                border: none;
-                border-radius: 30px;
-                cursor: pointer;
-                font-size: 1em;
-            }}
-            .note {{
-                font-size: 0.9em;
-                margin-top: 30px;
-                color: #666;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="logo">fit<span>bit</span></div>
-        
-        <h2>Web API Demo application by My Company would like the ability to access the following data in your Fitbit account.</h2>
-        
-        <ul class="permission-list">
-            <li>sleep</li>
-            <li>activity and exercise</li>
-            <li>heart rate</li>
-            <li>profile</li>
-            <li>weight</li>
-        </ul>
-        
-        <div class="note">
-            If you allow only some of this data, Web API Demo application may not function as intended. 
-            Learn more about these permissions <a href="#">here</a>.
-        </div>
-        
-        <div class="buttons">
-            <a href="/callback?decision=deny"><button class="deny">Deny</button></a>
-            <a href="/callback?decision=allow"><button class="allow">Allow</button></a>
-        </div>
-        
-        <div class="note">
-            The data you share with Web API Demo application will be governed by My Company's Privacy Policy and Terms of Service. 
-            You can revoke this consent at any time in your Fitbit account settings.
-        </div>
-    </body>
-    </html>
-    """
-    
-    def do_GET(self):
-        """Handle GET requests for authorization page and callbacks."""
-        parsed_path = urllib.parse.urlparse(self.path)
-        
-        # Serve the mock authorization page
-        if self.path == '/' or self.path == '/auth':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(self.AUTH_PAGE_TEMPLATE.encode())
-            return
-            
-        # Handle callback with user decision
-        elif parsed_path.path == '/callback':
-            query = urllib.parse.parse_qs(parsed_path.query)
-            decision = query.get('decision', ['unknown'])[0]
-            
-            # Store the result in the class variable
-            MockAuthHandler.auth_result = {
-                "status": "completed",
-                "decision": decision
-            }
-            
-            # Return a simple confirmation page
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            
-            response = f"""
-            <!DOCTYPE html>
-            <html>
-            <head><title>Authorization {decision.title()}</title></head>
-            <body>
-                <h1>Authorization {decision.title()}</h1>
-                <p>You have {decision}ed the authorization request.</p>
-                <p>You can close this window and return to the CLI.</p>
-            </body>
-            </html>
-            """
-            self.wfile.write(response.encode())
-            return
-            
-        # Handle other paths (404)
-        else:
-            self.send_response(404)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b'Not Found')
-            return
-    
-    def log_message(self, format, *args):
-        """Override to suppress server logs in CLI output."""
-        return
-
-
-def find_available_port() -> int:
-    """Find an available port to run the mock server on."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('localhost', 0))
-        return s.getsockname()[1]
-
-
-def start_mock_auth_server() -> Tuple[int, threading.Thread]:
-    """
-    Start the mock authorization server in a separate thread.
-    
-    Returns:
-        Tuple containing (port_number, server_thread)
-    """
-    port = find_available_port()
-    
-    # Reset the auth result before starting a new server
-    MockAuthHandler.auth_result = {"status": "pending", "decision": None}
-    
-    # Create and start the server in a separate thread
-    server = socketserver.TCPServer(("localhost", port), MockAuthHandler)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True  # So the thread will exit when the main program exits
-    server_thread.start()
-    
-    return port, server_thread, server
 
 
 def get_service():
@@ -349,7 +152,7 @@ def get_config_dir() -> Path:
     return config_dir
 
 
-def save_tracker_config(data: dict) -> None:
+def save_tracker_config(data: dict):
     """Saves tracker configuration."""
     config_file = get_config_dir() / "trackers.json"
     with open(config_file, "w") as f:
@@ -357,7 +160,7 @@ def save_tracker_config(data: dict) -> None:
     click.echo(f"Tracker configuration saved to {config_file}")
 
 
-def load_tracker_config() -> Optional[Dict[str, Any]]:
+def load_tracker_config() -> dict | None:
     """Loads tracker configuration."""
     config_file = get_config_dir() / "trackers.json"
     if config_file.exists():
@@ -391,106 +194,41 @@ def connect_tracker(provider: str):
     click.echo(f"Attempting to connect with {provider}...")
 
     if provider == 'fitbit':
-        try:
-            # Start the mock authorization server
-            port, server_thread, server = start_mock_auth_server()
-            auth_url = f"http://localhost:{port}/auth"
-            
-            click.echo("\n==============================================================")
-            click.echo("               MOCK FITBIT AUTHORIZATION PAGE")
-            click.echo("==============================================================")
-            click.echo("  COPY & PASTE THIS URL IF YOUR BROWSER DOESN'T OPEN:")
-            click.echo(f"  {auth_url}")
-            click.echo("==============================================================\n")
-            
-            # Try to open the browser to the mock authorization page
-            click.echo("Attempting to open the authorization page in your default browser...")
-            browser_opened = webbrowser.open(auth_url)
-            
-            if not browser_opened:
-                click.echo("\n!!! BROWSER DID NOT OPEN AUTOMATICALLY !!!", err=True)
-                click.echo("Please manually copy and paste the URL above into your browser")
-                click.echo(f"URL: {auth_url}")
-            else:
-                click.echo("Browser opened successfully!")
-            
-            click.echo("\n--- Fitbit Authorization Process ---")
-            click.echo("1. Review the permissions in the browser window")
-            click.echo("2. Click 'Allow' to authorize the application")
-            click.echo("3. You'll be redirected to a confirmation page")
-            click.echo("4. Return to this terminal after completing authorization\n")
-            
-            # Poll for the authorization result
-            max_wait_time = 120  # seconds
-            poll_interval = 1  # seconds
-            elapsed_time = 0
-            
-            # Show a spinner while waiting
-            spinner = ['|', '/', '-', '\\']
-            spinner_idx = 0
-            
-            click.echo("Waiting for your authorization decision...")
-            while elapsed_time < max_wait_time:
-                if MockAuthHandler.auth_result["status"] == "completed":
-                    break
-                    
-                # Show spinner
-                click.echo(f"\rWaiting for authorization... {spinner[spinner_idx]} (URL: {auth_url})", nl=False)
-                spinner_idx = (spinner_idx + 1) % len(spinner)
-                
-                time.sleep(poll_interval)
-                elapsed_time += poll_interval
-                
-                # Reminder every 15 seconds
-                if elapsed_time % 15 == 0 and elapsed_time > 0:
-                    click.echo("\r" + " " * 100, nl=False)  # Clear current line
-                    click.echo(f"\rReminder - Authorization URL: {auth_url}")
-                    click.echo("Waiting for your authorization decision...")
-            
-            # Clear the spinner line
-            click.echo("\r" + " " * 100, nl=False)
-            
-            # Process the result
-            if MockAuthHandler.auth_result["status"] == "completed":
-                if MockAuthHandler.auth_result["decision"] == "allow":
-                    click.echo("\rAuthorization successful! Fitbit access granted.")
-                    
-                    # Create and save token data
-                    token_data = {
-                        "access_token": f"mock_fitbit_access_token_{int(time.time())}",
-                        "refresh_token": f"mock_fitbit_refresh_token_{int(time.time())}",
-                        "expires_at": int(time.time()) + 28800,  # Fitbit tokens typically last 8 hours
-                        "provider": "fitbit",
-                        "user_id": "mock_fitbit_user_id"  # From Fitbit OAuth response
-                    }
-                    save_tracker_config(token_data)
-                    click.echo(f"SUCCESS: Fitbit tracker connected successfully!")
-                else:
-                    click.echo("\rAuthorization denied. Fitbit access was not granted.")
-            else:
-                click.echo("\rAuthorization timed out or was cancelled. Please try again.")
-            
-            # Shutdown the server
-            try:
-                server.shutdown()
-                server.server_close()
-                server_thread.join(timeout=5)
-                click.echo("Authorization server stopped.")
-            except Exception as e:
-                click.echo(f"Note: Could not cleanly shut down server: {e}", err=True)
-        
-        except Exception as e:
-            click.echo(f"Error during Fitbit authorization process: {e}", err=True)
-            click.echo("Falling back to mockfit tracker instead.")
-            # Fallback to mockfit in case of any errors
-            token_data = {
-                "access_token": f"mock_access_token_{int(time.time())}",
-                "refresh_token": f"mock_refresh_token_{int(time.time())}",
-                "expires_at": int(time.time()) + 86400,  # 24 hours from now
-                "provider": "mockfit"
-            }
-            save_tracker_config(token_data)
-            click.echo(f"SUCCESS: Mockfit tracker connected successfully as fallback!")
+        # For a real app, get these from config or env vars
+        client_id = os.getenv("FITBIT_CLIENT_ID", "YOUR_FITBIT_CLIENT_ID_HERE")
+        if client_id == "YOUR_FITBIT_CLIENT_ID_HERE":
+            click.echo("WARNING: FITBIT_CLIENT_ID not set. Using placeholder.", err=True)
+
+        redirect_uri = "http://localhost:8000/callback"  # Example callback, needs a listener for real flow
+        # Define scopes based on what data your promise templates need
+        scope = "activity heartrate profile"  # Add more as needed, e.g., sleep, nutrition
+
+        auth_url = (f"https://www.fitbit.com/oauth2/authorize?response_type=code"
+                    f"&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
+                    f"&code_challenge_method=S256&code_challenge=E9Melhoa2OwvFrEMTJgCHaoeK1t8URWbuGJSstw-cM")  # Example PKCE, generate dynamically
+
+        click.echo("Opening FitBit authorization page in your browser...")
+        click.echo(f"URL: {auth_url}")
+        click.echo("If your browser does not open, please copy the URL above and paste it manually.")
+        webbrowser.open(auth_url)
+
+        click.echo("\n--- Fitbit Authorization ---")
+        click.echo("After authorizing in your browser, Fitbit would redirect to your local callback URI.")
+        click.echo("For this MVP, we will simulate a successful authorization after a short delay.")
+        click.echo(
+            "In a real application, the CLI would need to listen for the callback or have the user paste the auth code.")
+        time.sleep(3)  # Simulate user authorizing and callback
+
+        # Mock successful authorization
+        token_data = {
+            "access_token": f"mock_fitbit_access_token_{int(time.time())}",
+            "refresh_token": f"mock_fitbit_refresh_token_{int(time.time())}",
+            "expires_at": int(time.time()) + 28800,  # Fitbit tokens typically last 8 hours
+            "provider": "fitbit",
+            "user_id": "mock_fitbit_user_id"  # From Fitbit OAuth response
+        }
+        save_tracker_config(token_data)
+        click.echo(f"SUCCESS: Fitbit tracker (mock) connected successfully!")
 
     elif provider == 'mockfit':
         token_data = {
