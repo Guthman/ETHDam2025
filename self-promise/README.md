@@ -21,6 +21,7 @@ The platform consists of several key components:
 1. **Smart Contracts**:
    - `PromiseDeposit.sol`: Handles token deposits and withdrawals
    - `PromiseKeeper.sol`: Manages promise templates, creation, and evaluation
+   - **NEW**: `MinimalPromiseDeposit.sol` and `MinimalPromiseKeeper.sol`: Minimal versions for development with lower gas usage
 
 2. **TEE Integration**:
    - Secure data handling within Oasis Sapphire
@@ -91,7 +92,11 @@ evaluation = service.evaluate_promise(promise["promise_id"], "user123")
 Run the demo script to see the platform in action:
 
 ```bash
+# Full version (may have gas issues)
 python test_demo.py
+
+# Minimal version (lower gas usage)
+python test_minimal_demo.py
 ```
 
 ## Development
@@ -100,23 +105,36 @@ python test_demo.py
 
 ```
 self-promise/
-├── contracts/                # Solidity smart contracts
-│   ├── PromiseDeposit.sol    # Token deposit contract
-│   └── PromiseKeeper.sol     # Promise management contract
+├── contracts/                   # Solidity smart contracts
+│   ├── PromiseDeposit.sol       # Token deposit contract
+│   ├── PromiseKeeper.sol        # Promise management contract
+│   ├── MinimalPromiseDeposit.sol  # Minimal token deposit contract
+│   └── MinimalPromiseKeeper.sol   # Minimal promise management contract
 ├── src/
-│   ├── evaluator/            # Promise evaluation modules
-│   │   ├── interface.py      # Evaluator interface
-│   │   ├── rule_based.py     # Rule-based evaluator
-│   │   └── llm_based.py      # LLM-based evaluator
-│   ├── terra_api/            # Fitness data integration
-│   │   └── client.py         # Terra API client
-│   ├── tee/                  # TEE integration
-│   │   └── sapphire.py       # Oasis Sapphire integration
-│   └── service.py            # Main service module
-├── tests/                    # Test modules
-├── setup.py                  # Package setup
-└── pyproject.toml            # Project configuration
+│   ├── evaluator/               # Promise evaluation modules
+│   │   ├── interface.py         # Evaluator interface
+│   │   ├── rule_based.py        # Rule-based evaluator
+│   │   └── llm_based.py         # LLM-based evaluator
+│   ├── terra_api/               # Fitness data integration
+│   │   └── client.py            # Terra API client
+│   ├── tee/                     # TEE integration
+│   │   └── sapphire.py          # Oasis Sapphire integration
+│   └── service.py               # Main service module
+├── tests/                       # Test modules
+├── TODO_GAS_OPTIMIZATION.md     # Gas optimization tasks
+├── setup.py                     # Package setup
+└── pyproject.toml               # Project configuration
 ```
+
+## Gas Optimization
+
+The full versions of the contracts (`PromiseKeeper.sol` and `PromiseDeposit.sol`) currently have high gas usage that may cause transactions to fail. To address this temporarily:
+
+1. We've created minimal versions of both contracts (`MinimalPromiseKeeper.sol` and `MinimalPromiseDeposit.sol`) with reduced functionality but much lower gas usage.
+2. A `test_minimal_demo.py` script demonstrates the use of these minimal contracts.
+3. A detailed plan for gas optimization is available in `TODO_GAS_OPTIMIZATION.md`.
+
+Use the minimal contracts for development until the gas optimization tasks are completed.
 
 ## License
 
@@ -234,6 +252,12 @@ ROFL (Runtime On-chain for Functions & Lambdas) enables running arbitrary code w
 For more information, refer to the [Oasis Sapphire documentation](https://docs.oasis.io/dapp/sapphire/).
 
 ## Changelog
+
+### v0.1.3
+- Added minimal versions of contracts (`MinimalPromiseKeeper.sol` and `MinimalPromiseDeposit.sol`) to reduce gas usage
+- Created `test_minimal_demo.py` for testing the minimal contracts
+- Added `TODO_GAS_OPTIMIZATION.md` with planned gas optimization tasks
+- Updated README with information about the minimal contracts and gas optimization plan
 
 ### v0.1.2
 - Optimized gas limits for all contract operations to prevent out-of-gas errors

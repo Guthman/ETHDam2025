@@ -1,0 +1,44 @@
+# This is a ROFL compose.yaml, not a standard Docker Compose file.
+# App details like name and description are typically managed by 
+# 'oasis rofl init' and 'oasis rofl create' in the .rofl/config.yaml or rofl.yaml file.
+# The compose.yaml for 'oasis rofl build' primarily defines the services.
+
+services:
+  evaluator-svc: # Name of the service within your ROFL app
+    image: . # Tells 'oasis rofl build' to build the Docker image from the current directory (where Dockerfile is)
+    # The ENTRYPOINT in the Dockerfile is ["python", "rofl_evaluator.py"]
+    # The command below can be used to override or provide default arguments,
+    # but for ROFL, the execution command with specific inputs is typically passed via `oasis rofl exec`
+    # or through the runtime when called from a smart contract.
+    # We will rely on the ENTRYPOINT in the Dockerfile and provide arguments during execution.
+    # So, we can leave 'command' empty here or make it a no-op if needed.
+    # For clarity, let's remove it and rely on `oasis rofl exec` to specify the full command + args.
+    # command: [] # Or remove this line
+
+    # If we want to define a named "job" or "task" that `oasis rofl exec` can refer to,
+    # the structure might be different, or we directly pass arguments to the default service entrypoint.
+    # For now, let's assume `oasis rofl exec` will target `evaluator-svc` and provide the necessary arguments
+    # to the Docker container's ENTRYPOINT.
+
+    # Define the expected input schema for this job (optional but good practice)
+    # input:
+    #   type: object
+    #   properties:
+    #     promise_params_json:
+    #       type: string
+    #       description: "JSON string of promise parameters"
+    #     evidence_json:
+    #       type: string
+    #       description: "JSON string of user evidence"
+    # Define the output schema (optional)
+    # output:
+    #   type: object # The script outputs a JSON string, which ROFL will handle as a JSON object if parsed.
+    #   properties:
+    #     fulfilled:
+    #       type: boolean
+    #     reasoning:
+    #       type: string
+    #     achieved_azm:
+    #       type: integer
+    #     target_azm:
+    #       type: integer 

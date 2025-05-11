@@ -51,7 +51,7 @@ class SapphireClient:
                  private_key: Optional[str] = None,
                  provider_url: str = "http://localhost:8545",
                  contract_dir: str = None,
-                 default_gas_limit: int = 6000000):
+                 default_gas_limit: int = None):
         """
         Initialize the Sapphire client.
         
@@ -60,7 +60,7 @@ class SapphireClient:
             private_key: The private key for signing transactions
             provider_url: URL of the Sapphire node
             contract_dir: Directory containing contract source files
-            default_gas_limit: Default gas limit to use for transactions (default: 6000000)
+            default_gas_limit: Default gas limit to use for transactions (if None, reads from DEFAULT_GAS_LIMIT env var or defaults to 6,000,000)
         """
         self.network = network or os.environ.get("OASIS_NETWORK") or "sapphire-localnet"
         self.private_key = private_key or os.environ.get("OASIS_PRIVATE_KEY")
@@ -91,6 +91,14 @@ class SapphireClient:
         self.contracts = {}
         logger.info("SapphireClient initialized for network: %s", self.network)
 
+        # Get default gas limit from parameter, environment, or use default
+        if default_gas_limit is None:
+            try:
+                default_gas_limit = int(os.environ.get("DEFAULT_GAS_LIMIT", "6000000"))
+            except ValueError:
+                logger.warning("Invalid DEFAULT_GAS_LIMIT in environment, using default 6,000,000")
+                default_gas_limit = 6000000
+        
         # Store the default gas limit
         self.default_gas_limit = default_gas_limit
         logger.info("Using default gas limit for all transactions: %d", self.default_gas_limit)
@@ -200,7 +208,10 @@ class SapphireClient:
 
         # If bytecode and ABI weren't provided, compile the contract
         if not contract_bytecode or not contract_abi:
-            contract_abi, contract_bytecode = await self.compile_contract(contract_name)
+            logger.info("Compiling %s contract as ABI/bytecode not provided for deployment.", contract_name)
+            # Ensure compile_contract is awaited correctly if it's async (it is)
+            # And it's a static method, so call it on the class
+            contract_abi, contract_bytecode = await SapphireClient.compile_contract(contract_name)
 
         # Create the contract instance
         contract = self.w3.eth.contract(abi=contract_abi, bytecode=contract_bytecode)
@@ -213,24 +224,39 @@ class SapphireClient:
         gas_price = await self.w3.eth.gas_price
         await self.is_network_ready()
         
+        logger.info("Sending constructor transaction for %s with gas limit: %d", contract_name, self.default_gas_limit)
         tx_hash = await contract.constructor(*constructor_args).transact({
             "gasPrice": gas_price,
             "gas": self.default_gas_limit  # Use the default gas limit
         })
+        logger.info("Deployment transaction for %s sent, hash: %s", contract_name, tx_hash.hex())
 
         # Wait for the transaction receipt
+        logger.info("Waiting for transaction receipt for %s deployment...", contract_name)
         tx_receipt = await self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        
+        if tx_receipt.status == 0:
+            logger.error("Contract %s deployment failed. Transaction status is 0. Receipt: %s", contract_name, tx_receipt)
+            raise Exception(f"Contract {contract_name} deployment failed. Transaction status is 0.")
+
         contract_address = tx_receipt.contractAddress
+        if not contract_address:
+            logger.error("Contract %s deployment failed. No contract address in receipt. Receipt: %s", contract_name, tx_receipt)
+            raise Exception(f"Contract {contract_name} deployment failed. No contract address in receipt.")
+
+        logger.info("Contract %s deployed successfully at address: %s. Gas used: %d", 
+                    contract_name, contract_address, tx_receipt.gasUsed)
 
         # Cache the contract
         self.contracts[contract_name] = {
             "address": contract_address,
             "abi": contract_abi,
             "bytecode": contract_bytecode,
-            "constructor_args": constructor_args
+            "constructor_args": constructor_args,
+            "deploy_tx_hash": tx_hash.hex(),
+            "deploy_gas_used": tx_receipt.gasUsed # Store gas used
         }
-
-        logger.info("Contract deployed at address: %s", contract_address)
+        
         return contract_address
 
     async def call_contract(self,
